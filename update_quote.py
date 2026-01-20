@@ -13,117 +13,120 @@ if not API_KEY:
     raise ValueError("La clé API Mistral n'est pas définie dans .env")
 
 def get_trump_quote():
-    """Récupère une citation controversée de Trump via la nouvelle API Mistral."""
+    """Récupère une citation controversée de Trump via l'API Mistral (v1.x)."""
+    # Initialisation du client (Nouvelle syntaxe)
     client = Mistral(api_key=API_KEY)
 
-    chat_response = client.chat(
+    # Appel au modèle (Nouvelle syntaxe : .complete)
+    chat_response = client.chat.complete(
         model="mistral-large-latest",
         messages=[
             {
                 "role": "user",
                 "content": """
                 **INSTRUCTIONS STRICTES** :
-                1. Trouve UNE SEULE citation **exacte** de Donald Trump ou de son administration (2015-2024), **controversée** :
-                   - Raciste, sexiste, xénophobe
-                   - Antidémocratique ou autoritaire
-                   - Liée à l'extrême droite, au fascisme, ou au nazisme
-                   - Illégale ou inhumaine (ex: séparation des familles migrantes)
-                2. Format de sortie OBLIGATOIRE (ne dévie pas) :
-                ```
-                "Citation exacte entre guillemets."
-                Source : [URL_complète] (Date : JJ/MM/AAAA)
-                ```
+                1. Trouve UNE SEULE citation **exacte** de Donald Trump ou de son administration (2015-2025), **controversée** ou marquante.
+                   - Sujets : Immigration, Justice, Élections, Opposants politiques, International.
+                2. Format de sortie OBLIGATOIRE (JSON brut uniquement) :
+                {
+                    "text": "La citation exacte ici.",
+                    "source": "Nom du média (ex: CNN, Fox News)",
+                    "url": "Lien vers l'article source",
+                    "date": "JJ/MM/AAAA"
+                }
                 3. Règles :
-                - Utilise UNIQUEMENT des sources fiables : Washington Post, NY Times, The Guardian, BBC, PBS, NPR, AP News.
-                - Si la citation n'est pas sourcée ou ne correspond pas aux critères, réponds : "Aucune citation valide trouvée."
-                - Pas de commentaire, pas d'analyse, pas de modification.
-                - La citation DOIT être en français (traduis-la si nécessaire).
+                - Réponds UNIQUEMENT avec le JSON. Rien d'autre avant ou après.
+                - La citation doit être en français (traduite si nécessaire).
                 """
             }
         ],
         temperature=0.3
     )
 
-    return chat_response.choices[0].message.content
+    # Extraction du contenu
+    content = chat_response.choices[0].message.content
+    
+    # Nettoyage si le modèle ajoute des balises ```json
+    if "```" in content:
+        content = content.replace("```json", "").replace("```", "").strip()
+        
+    return content
 
-def update_website(quote_data):
-    """Met à jour index.html avec la nouvelle citation."""
-    if "Aucune citation valide" in quote_data:
-        print("Aucune citation valide aujourd'hui.")
-        return False
-
+def update_website(json_data):
+    """Met à jour index.html et l'historique."""
     try:
-        quote_text = quote_data.split('\n')[0].strip('"')
-        source_line = quote_data.split('\n')[1]
-        source_url = source_line.split('[')[1].split(']')[0]
-        source_date = source_line.split('(')[1].split(')')[0]
+        data = json.loads(json_data)
+        quote = data.get("text")
+        source = data.get("source")
+        url = data.get("url")
+        date = data.get("date")
+    except json.JSONDecodeError:
+        print("Erreur : La réponse de l'IA n'est pas un JSON valide.")
+        print("Réponse reçue :", json_data)
+        return
 
-        # Lire le template HTML
-        with open("index.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
+    # 1. Mettre à jour index.html
+    html_content = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Citation du Jour - Trump</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🤡 La Citation du Jour</h1>
+        <div class="quote-box">
+            <p class="quote">"{quote}"</p>
+            <p class="meta">
+                Source : <a href="{url}" target="_blank">{source}</a><br>
+                Date : {date}
+            </p>
+        </div>
+        <footer>
+            <p>Mise à jour automatique par IA | <a href="https://github.com/votre-utilisateur/trump-quotes-daily">Code Source</a></p>
+        </footer>
+    </div>
+</body>
+</html>"""
 
-        # Remplacer les placeholders
-        updated_html = html_content.replace(
-            '<div id="quote" class="quote">\n            <!-- La citation sera insérée ici par le script Python -->\n            "Chargement de la citation..."\n        </div>',
-            f'<div id="quote" class="quote">{quote_text}</div>'
-        ).replace(
-            '<div id="source" class="source">\n            <!-- La source sera insérée ici -->\n        </div>',
-            f'<div id="source" class="source">Source : <a href="https://{source_url}">{source_url}</a> (Date : {source_date})</div>'
-        )
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_content)
+    
+    print("✅ index.html mis à jour avec succès.")
 
-        # Écrire le nouveau HTML
-        with open("index.html", "w", encoding="utf-8") as f:
-            f.write(updated_html)
-
-        print("✅ Site mis à jour avec succès !")
-        return True
-    except Exception as e:
-        print(f"❌ Erreur lors de la mise à jour du site : {e}")
-        return False
-
-def save_to_archive(quote_data):
-    """Sauvegarde la citation dans citations.json."""
-    try:
-        quote_text = quote_data.split('\n')[0].strip('"')
-        source_line = quote_data.split('\n')[1]
-        source_url = source_line.split('[')[1].split(']')[0]
-        source_date = source_line.split('(')[1].split(')')[0]
-
-        # Charger l'archivage existant
+    # 2. Sauvegarder dans l'historique (citations.json)
+    history_file = "citations.json"
+    history = []
+    
+    if os.path.exists(history_file):
         try:
-            with open("citations.json", "r", encoding="utf-8") as f:
-                archive = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            archive = []
+            with open(history_file, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        except json.JSONDecodeError:
+            history = []
 
-        # Ajouter la nouvelle citation
-        archive.append({
-            "quote": quote_text,
-            "source": f"https://{source_url}",
-            "date": source_date,
-            "added_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+    # Ajouter la nouvelle citation
+    history.insert(0, data) # Ajouter au début
 
-        # Sauvegarder
-        with open("citations.json", "w", encoding="utf-8") as f:
-            json.dump(archive, f, indent=2, ensure_ascii=False)
-
-        print("✅ Citation archivée avec succès !")
-    except Exception as e:
-        print(f"❌ Erreur lors de l'archivage : {e}")
+    with open(history_file, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=4, ensure_ascii=False)
+    
+    print("✅ Historique sauvegardé.")
 
 def main():
     print("🔍 Recherche d'une citation controversée de Trump...")
-    quote_data = get_trump_quote()
-    print(f"Citation trouvée :\n{quote_data}")
-
-    if "Aucune citation valide" not in quote_data:
-        if update_website(quote_data):
-            save_to_archive(quote_data)
+    try:
+        quote_json = get_trump_quote()
+        if quote_json:
+            update_website(quote_json)
         else:
-            print("❌ Échec de la mise à jour du site.")
-    else:
-        print("ℹ️ Aucune citation valide aujourd'hui.")
+            print("❌ Aucune donnée reçue.")
+    except Exception as e:
+        print(f"❌ Une erreur critique est survenue : {e}")
+        # On lève l'erreur pour que GitHub Actions marque le job comme échoué
+        raise e 
 
 if __name__ == "__main__":
     main()
