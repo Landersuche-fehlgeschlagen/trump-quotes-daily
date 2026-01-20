@@ -1,0 +1,34 @@
+body {
+    font-family: "Times New Roman", Times, serif;
+    background-color: white;
+    color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    text-align: center;
+    max-width: 800px;
+    padding: 2rem;
+}
+
+.quote {
+    font-size: 1.5rem;
+    color: #ff0000; /* Rouge */
+    margin: 2rem 0;
+    line-height: 1.6;
+}
+
+.source {
+    font-size: 1rem;
+    color: #333;
+    font-style: italic;
+}
+
+h1 {
+    font-size: 2rem;
+    color: #333;
+}
