@@ -13,3 +13,22 @@ Un site minimaliste affichant **une citation controversée de Donald Trump ou de
    ```bash
    git clone https://github.com/votre-utilisateur/trump-quotes-daily.git
    cd trump-quotes-daily
+
+2. Créer un environnement virtuel :
+
+    python3 -m venv venv
+    source venv/bin/activate  # macOS/Linux
+    # venv\Scripts\activate    # Windows
+
+3. Installer les dépendances :
+
+    pip install -r requirements.txt
+
+4. Ajouter votre clé API Mistral dans .env :
+
+    echo "MISTRAL_API_KEY=votre_clé_api" > .env
+
+5. Tester localement :
+
+    python update_quote.py
+
