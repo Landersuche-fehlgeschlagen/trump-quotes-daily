@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from mistralai.client import MistralClient
+from mistralai import Mistral
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
@@ -13,10 +13,10 @@ if not API_KEY:
     raise ValueError("La clé API Mistral n'est pas définie dans .env")
 
 def get_trump_quote():
-    """Récupère une citation controversée de Trump via l'API Mistral."""
-    client = MistralClient(api_key=API_KEY)
+    """Récupère une citation controversée de Trump via la nouvelle API Mistral."""
+    client = Mistral(api_key=API_KEY)
 
-    response = client.chat(
+    chat_response = client.chat(
         model="mistral-large-latest",
         messages=[
             {
@@ -37,13 +37,14 @@ def get_trump_quote():
                 - Utilise UNIQUEMENT des sources fiables : Washington Post, NY Times, The Guardian, BBC, PBS, NPR, AP News.
                 - Si la citation n'est pas sourcée ou ne correspond pas aux critères, réponds : "Aucune citation valide trouvée."
                 - Pas de commentaire, pas d'analyse, pas de modification.
+                - La citation DOIT être en français (traduis-la si nécessaire).
                 """
             }
         ],
         temperature=0.3
     )
 
-    return response.choices[0].message.content
+    return chat_response.choices[0].message.content
 
 def update_website(quote_data):
     """Met à jour index.html avec la nouvelle citation."""
@@ -74,10 +75,10 @@ def update_website(quote_data):
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(updated_html)
 
-        print("Site mis à jour avec succès !")
+        print("✅ Site mis à jour avec succès !")
         return True
     except Exception as e:
-        print(f"Erreur lors de la mise à jour du site : {e}")
+        print(f"❌ Erreur lors de la mise à jour du site : {e}")
         return False
 
 def save_to_archive(quote_data):
@@ -107,9 +108,9 @@ def save_to_archive(quote_data):
         with open("citations.json", "w", encoding="utf-8") as f:
             json.dump(archive, f, indent=2, ensure_ascii=False)
 
-        print("Citation archivée avec succès !")
+        print("✅ Citation archivée avec succès !")
     except Exception as e:
-        print(f"Erreur lors de l'archivage : {e}")
+        print(f"❌ Erreur lors de l'archivage : {e}")
 
 def main():
     print("🔍 Recherche d'une citation controversée de Trump...")
@@ -120,9 +121,9 @@ def main():
         if update_website(quote_data):
             save_to_archive(quote_data)
         else:
-            print("Échec de la mise à jour du site.")
+            print("❌ Échec de la mise à jour du site.")
     else:
-        print("Aucune citation valide aujourd'hui.")
+        print("ℹ️ Aucune citation valide aujourd'hui.")
 
 if __name__ == "__main__":
     main()
