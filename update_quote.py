@@ -71,12 +71,13 @@ def update_website(json_data):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Citation du Jour - Trump</title>
+    <title>Dérive : {today}</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <img src="assets/logo.png" alt="Logo Dérive" class="logo-top-right">
     <div class="container">
-        <h1>🤡 La Citation du Jour</h1>
+        <h1>Dérive du jour</h1>
         <div class="quote-box">
             <p class="quote">"{quote}"</p>
             <p class="meta">
@@ -85,7 +86,7 @@ def update_website(json_data):
             </p>
         </div>
         <footer>
-            <p>Mise à jour automatique par IA | <a href="https://github.com/votre-utilisateur/trump-quotes-daily">Code Source</a></p>
+            <p>Mise à jour automatique tous les jours | <a href="https://github.com/votre-utilisateur/trump-quotes-daily">Code Source</a></p>
         </footer>
     </div>
 </body>
