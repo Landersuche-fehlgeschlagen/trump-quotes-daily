@@ -1,54 +1,50 @@
-/* style.css */
 body {
-    font-family: "Times New Roman", Times, serif; /* Police imposée partout */
-    background-color: #ffffff;
-    color: #000000;
+    background-color: #fcfcfc; /* Blanc cassé très léger */
+    font-family: 'Times New Roman', Times, serif; /* Police imposée partout */
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 1**Revisiting Source Extraction**
-
-Now I'm delving deeper into the Python script's source URL parsing.  I've found the AI consistently provides the URL within the "Source:" line, so I am implementing a robust extraction method that isolates the URL.  I'm now also adding error handling to gracefully manage any unexpected variations in the AI's output format, ensuring the script does not break.
-
-
-00vh;
+    height: 100vh;
     margin: 0;
-    padding: 20px;
     text-align: center;
+    padding: 20px;
 }
 
 .container {
     max-width: 800px;
-    width: 100%;
+    padding: 40px;
+    border: 1px solid #ddd; /* Cadre fin optionnel */
+    background-color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
-/* La Citation : Rouge, Grande, Centrée */
+/* La Citation : Rouge foncé, grande */
 .quote {
-    font-size: 2.5rem; /* Très grand */
-    color: #cc0000;    /* Rouge sombre/sang, plus lisible que le rouge vif */
-    font-weight: bold;
+    font-size: 2.5rem;
+    color: #b30000; /* Rouge sombre/sang */
+    margin-bottom: 25px;
     font-style: italic;
     line-height: 1.4;
-    margin-bottom: 30px;
 }
 
-/* L'Auteur : Noir, Juste en dessous */
+/* L'Auteur : Noir, en dessous */
 .author {
     font-size: 1.5rem;
     font-weight: bold;
-    text-transform: uppercase; /* NOM EN MAJUSCULES */
-    margin-bottom: 10px;
     color: #000;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-/* La Source et la Date : Petit, lien cliquable */
+/* Métadonnées : Source cliquable et Date */
 .meta {
     font-size: 1rem;
-    color: #444;
+    color: #555;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
     margin-top: 20px;
-    border-top: 1px solid #ddd; /* Petite ligne de séparation fine */
     display: inline-block;
-    padding-top: 10px;
 }
 
 .meta a {
@@ -59,11 +55,11 @@ Now I'm delving deeper into the Python script's source URL parsing.  I've found 
 }
 
 .meta a:hover {
-    color: #cc0000;
+    color: #b30000;
 }
 
-/* Responsive pour mobile */
+/* Mobile */
 @media (max-width: 600px) {
     .quote { font-size: 1.8rem; }
-    .author { font-size: 1.2rem; }
+    .container { padding: 20px; }
 }
