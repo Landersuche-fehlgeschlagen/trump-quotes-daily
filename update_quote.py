@@ -58,11 +58,12 @@ def update_html(data):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dixit : {auteur}</title>
+    <title>Dérive : {auteur}</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
+        <img src="assets/logo.png" alt="Logo Dérive" class="logo-top-right">
         <!-- La citation en rouge -->
         <div class="quote">
             « {citation} »
