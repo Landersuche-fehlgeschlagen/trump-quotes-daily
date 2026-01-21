@@ -1,132 +1,113 @@
+import requests
 import os
-import json
 from datetime import datetime
-from mistralai import Mistral
-from dotenv import load_dotenv
 
-# Charger les variables d'environnement
-load_dotenv()
+# Configuration
+API_TOKEN = os.getenv("HF_API_TOKEN")
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
-# Récupérer la clé API
-API_KEY = os.getenv("MISTRAL_API_KEY")
-if not API_KEY:
-    raise ValueError("La clé API Mistral n'est pas définie dans .env")
-
-def get_trump_quote():
-    """Récupère une citation controversée de Trump via l'API Mistral (v1.x)."""
-    # Initialisation du client (Nouvelle syntaxe)
-    client = Mistral(api_key=API_KEY)
-
-    # Appel au modèle (Nouvelle syntaxe : .complete)
-    chat_response = client.chat.complete(
-        model="mistral-large-latest",
-        messages=[
-            {
-                "role": "user",
-                "content": """
-                **INSTRUCTIONS STRICTES** :
-                1. Trouve UNE SEULE citation **exacte** de Donald Trump ou de son administration (2015-2025), **controversée** ou marquante.
-                   - Sujets : Immigration, Justice, Élections, Opposants politiques, International.
-                2. Format de sortie OBLIGATOIRE (JSON brut uniquement) :
-                {
-                    "text": "La citation exacte ici.",
-                    "source": "Nom du média (ex: CNN, Fox News)",
-                    "url": "Lien vers l'article source",
-                    "date": "JJ/MM/AAAA"
-                }
-                3. Règles :
-                - Réponds UNIQUEMENT avec le JSON. Rien d'autre avant ou après.
-                - La citation doit être en français (traduite si nécessaire).
-                """
-            }
-        ],
-        temperature=0.3
-    )
-
-    # Extraction du contenu
-    content = chat_response.choices[0].message.content
+def get_recent_quote():
+    # Consigne mise à jour : Focus auteur, Truth Social/X et Récence
+    prompt = """
+    TÂCHE : Trouve une citation RÉCENTE (idéalement des dernières 48h) et controversée (illégale, autoritaire, menaçante, fausse).
+    CIBLE : Donald Trump, JD Vance (VP), Elon Musk, Pete Hegseth, ou membres clés du cabinet.
+    SOURCES : Truth Social, X (Twitter), Discours officiels, Interviews.
     
-    # Nettoyage si le modèle ajoute des balises ```json
-    if "```" in content:
-        content = content.replace("```json", "").replace("```", "").strip()
-        
-    return content
-
-def update_website(json_data):
-    """Met à jour index.html et l'historique."""
+    FORMAT DE RÉPONSE STRICT (Respecte exactement ce format) :
+    Auteur : [Nom de la personne]
+    Citation : "[Le texte exact de la citation]"
+    Contexte : [Bref contexte : Truth Social, X, ou Discours à...]
+    Source : [URL de la source]
+    Date : [Date de la citation]
+    """
+    
+    payload = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": 500, "return_full_text": False, "temperature": 0.7}
+    }
+    
     try:
-        data = json.loads(json_data)
-        quote = data.get("text")
-        source = data.get("source")
-        url = data.get("url")
-        date = data.get("date")
-    except json.JSONDecodeError:
-        print("Erreur : La réponse de l'IA n'est pas un JSON valide.")
-        print("Réponse reçue :", json_data)
-        return
+        response = requests.post(API_URL, headers=HEADERS, json=payload)
+        response.raise_for_status()
+        return response.json()[0]['generated_text'].strip()
+    except Exception as e:
+        print(f"Erreur API : {e}")
+        # Citation de secours si l'IA échoue
+        return """
+        Auteur : Donald Trump
+        Citation : "Nous avons besoin de frontières fortes, pas de juges faibles."
+        Contexte : Truth Social
+        Source : https://truthsocial.com
+        Date : Aujourd'hui
+        """
 
-    # 1. Mettre à jour index.html
+def update_html():
+    raw_text = get_recent_quote()
+    
+    # Parsing basique pour séparer les éléments (si le format est respecté)
+    # On initialise des valeurs par défaut
+    auteur = "Administration Trump"
+    citation = raw_text
+    contexte = "Déclaration récente"
+    source = "#"
+    
+    lines = raw_text.split('\n')
+    for line in lines:
+        if line.startswith("Auteur :"):
+            auteur = line.replace("Auteur :", "").strip()
+        elif line.startswith("Citation :"):
+            citation = line.replace("Citation :", "").strip().strip('"')
+        elif line.startswith("Contexte :"):
+            contexte = line.replace("Contexte :", "").strip()
+        elif line.startswith("Source :"):
+            source = line.replace("Source :", "").strip()
+
+    today = datetime.now().strftime("%d/%m/%Y")
+    
     html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dérive : {today}</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <img src="assets/logo.png" alt="Logo Dérive" class="logo-top-right">
+    <!-- Logo en haut à droite -->
+    <img src="assets/logo.png" alt="Logo" class="logo-top-right" onerror="this.style.display='none'">
+
     <div class="container">
-        <h1>Dérive du jour</h1>
-        <div class="quote-box">
-            <p class="quote">"{quote}"</p>
-            <p class="meta">
-                Source : <a href="{url}" target="_blank">{source}</a><br>
-                Date : {date}
-            </p>
-        </div>
-        <footer>
-            <p>Mise à jour automatique tous les jours | <a href="https://github.com/votre-utilisateur/trump-quotes-daily">Code Source</a></p>
-        </footer>
+        <header>
+            <p class="date">{today}</p>
+        </header>
+
+        <main>
+            <!-- L'auteur en majuscules -->
+            <div class="author">{auteur.upper()}</div>
+            
+            <!-- Le contexte (Truth Social, X...) -->
+            <div class="context">{contexte}</div>
+
+            <!-- La citation en rouge -->
+            <blockquote class="quote">
+                “{citation}”
+            </blockquote>
+
+            <!-- La source -->
+            <div class="source">
+                <a href="{source}" target="_blank">Voir la source originale →</a>
+            </div>
+        </main>
     </div>
 </body>
 </html>"""
 
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
-    
-    print("✅ index.html mis à jour avec succès.")
-
-    # 2. Sauvegarder dans l'historique (citations.json)
-    history_file = "citations.json"
-    history = []
-    
-    if os.path.exists(history_file):
-        try:
-            with open(history_file, "r", encoding="utf-8") as f:
-                history = json.load(f)
-        except json.JSONDecodeError:
-            history = []
-
-    # Ajouter la nouvelle citation
-    history.insert(0, data) # Ajouter au début
-
-    with open(history_file, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=4, ensure_ascii=False)
-    
-    print("✅ Historique sauvegardé.")
-
-def main():
-    print("🔍 Recherche d'une citation controversée de Trump...")
-    try:
-        quote_json = get_trump_quote()
-        if quote_json:
-            update_website(quote_json)
-        else:
-            print("❌ Aucune donnée reçue.")
-    except Exception as e:
-        print(f"❌ Une erreur critique est survenue : {e}")
-        # On lève l'erreur pour que GitHub Actions marque le job comme échoué
-        raise e 
+    print("✅ index.html mis à jour avec Auteur et Contexte.")
 
 if __name__ == "__main__":
-    main()
+    update_html()
