@@ -1,113 +1,101 @@
-import requests
 import os
-from datetime import datetime
+import re
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
 
 # Configuration
-API_TOKEN = os.getenv("HF_API_TOKEN")
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
-HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
+API_KEY = os.environ.get("MISTRAL_API_KEY")
+client = MistralClient(api_key=API_KEY)
 
-def get_recent_quote():
-    # Consigne mise à jour : Focus auteur, Truth Social/X et Récence
+def get_quote():
+    # Prompt strict pour faciliter le découpage par le code
     prompt = """
-    TÂCHE : Trouve une citation RÉCENTE (idéalement des dernières 48h) et controversée (illégale, autoritaire, menaçante, fausse).
-    CIBLE : Donald Trump, JD Vance (VP), Elon Musk, Pete Hegseth, ou membres clés du cabinet.
-    SOURCES : Truth Social, X (Twitter), Discours officiels, Interviews.
+    TÂCHE : Trouve une citation RÉCENTE et controversée de Donald Trump, JD Vance, ou Elon Musk.
+    SUJET : Illégal, autoritaire, mensonge flagrant, ou référence fasciste.
     
-    FORMAT DE RÉPONSE STRICT (Respecte exactement ce format) :
-    Auteur : [Nom de la personne]
-    Citation : "[Le texte exact de la citation]"
-    Contexte : [Bref contexte : Truth Social, X, ou Discours à...]
-    Source : [URL de la source]
-    Date : [Date de la citation]
+    FORMAT DE RÉPONSE OBLIGATOIRE (Remplis juste les crochets) :
+    AUTEUR: [Nom de la personne]
+    CITATION: [La citation exacte entre guillemets]
+    URL: [Lien http direct vers la source]
+    SOURCE_NOM: [Nom du média, ex: The Guardian]
+    DATE: [Date au format JJ/MM/AAAA]
     """
     
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_new_tokens": 500, "return_full_text": False, "temperature": 0.7}
-    }
-    
     try:
-        response = requests.post(API_URL, headers=HEADERS, json=payload)
-        response.raise_for_status()
-        return response.json()[0]['generated_text'].strip()
+        chat_response = client.chat(
+            model="mistral-large-latest",
+            messages=[ChatMessage(role="user", content=prompt)]
+        )
+        content = chat_response.choices[0].message.content
+        return content
     except Exception as e:
         print(f"Erreur API : {e}")
-        # Citation de secours si l'IA échoue
-        return """
-        Auteur : Donald Trump
-        Citation : "Nous avons besoin de frontières fortes, pas de juges faibles."
-        Contexte : Truth Social
-        Source : https://truthsocial.com
-        Date : Aujourd'hui
-        """
+        return None
 
-def update_html():
-    raw_text = get_recent_quote()
+def parse_and_generate_html(raw_text):
+    # Valeurs par défaut
+    data = {
+        "AUTEUR": "DONALD TRUMP",
+        "CITATION": "Une erreur est survenue lors de la récupération.",
+        "URL": "#",
+        "SOURCE_NOM": "Source inconnue",
+        "DATE": "Aujourd'hui"
+    }
     
-    # Parsing basique pour séparer les éléments (si le format est respecté)
-    # On initialise des valeurs par défaut
-    auteur = "Administration Trump"
-    citation = raw_text
-    contexte = "Déclaration récente"
-    source = "#"
-    
-    lines = raw_text.split('\n')
-    for line in lines:
-        if line.startswith("Auteur :"):
-            auteur = line.replace("Auteur :", "").strip()
-        elif line.startswith("Citation :"):
-            citation = line.replace("Citation :", "").strip().strip('"')
-        elif line.startswith("Contexte :"):
-            contexte = line.replace("Contexte :", "").strip()
-        elif line.startswith("Source :"):
-            source = line.replace("Source :", "").strip()
+    # Découpage intelligent du texte de l'IA
+    if raw_text:
+        lines = raw_text.split('\n')
+        for line in lines:
+            if "AUTEUR:" in line:
+                data["AUTEUR"] = line.split("AUTEUR:")[1].strip()
+            elif "CITATION:" in line:
+                data["CITATION"] = line.split("CITATION:")[1].strip().replace('"', '') # On enlève les guillemets pour les remettre en CSS ou HTML
+            elif "URL:" in line:
+                # Extraction basique d'URL
+                url_match = re.search(r'(https?://[^\s]+)', line)
+                if url_match:
+                    data["URL"] = url_match.group(0)
+            elif "SOURCE_NOM:" in line:
+                data["SOURCE_NOM"] = line.split("SOURCE_NOM:")[1].strip()
+            elif "DATE:" in line:
+                data["DATE"] = line.split("DATE:")[1].strip()
 
-    today = datetime.now().strftime("%d/%m/%Y")
-    
-    html_content = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dérive : {today}</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <!-- Logo en haut à droite -->
-    <img src="assets/logo.png" alt="Logo" class="logo-top-right" onerror="this.style.display='none'">
-
-    <div class="container">
-        <header>
-            <p class="date">{today}</p>
-        </header>
-
-        <main>
-            <!-- L'auteur en majuscules -->
-            <div class="author">{auteur.upper()}</div>
+    # Génération du HTML propre
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Citation du jour - Trump & Co</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div class="container">
+            <div class="quote">« {data['CITATION']} »</div>
+            <div class="author">{data['AUTEUR']}</div>
             
-            <!-- Le contexte (Truth Social, X...) -->
-            <div class="context">{contexte}</div>
-
-            <!-- La citation en rouge -->
-            <blockquote class="quote">
-                “{citation}”
-            </blockquote>
-
-            <!-- La source -->
-            <div class="source">
-                <a href="{source}" target="_blank">Voir la source originale →</a>
+            <div class="meta">
+                Source : <a href="{data['URL']}" target="_blank">{data['SOURCE_NOM']}</a> 
+                — {data['DATE']}
             </div>
-        </main>
-    </div>
-</body>
-</html>"""
-
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print("✅ index.html mis à jour avec Auteur et Contexte.")
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html_content
 
 if __name__ == "__main__":
-    update_html()
+    print("🔍 Recherche de la citation...")
+    raw_text = get_quote()
+    
+    if raw_text:
+        print("📝 Génération du site...")
+        html = parse_and_generate_html(raw_text)
+        
+        with open("index.html", "w") as f:
+            f.write(html)
+        print("✅ index.html mis à jour avec succès.")
+    else:
+        print("❌ Échec de la récupération.")
