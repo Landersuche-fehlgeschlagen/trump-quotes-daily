@@ -63,3 +63,21 @@ body {
     .quote { font-size: 1.8rem; }
     .container { padding: 20px; }
 }
+.logo-top-right {
+    position: absolute; /* Permet de le placer n'importe où */
+    top: 20px;          /* Ecart depuis le haut */
+    right: 20px;        /* Ecart depuis la droite */
+    width: 60px;        /* Ajustez la taille ici */
+    height: auto;       /* Garde les proportions */
+    z-index: 1000;      /* S'assure qu'il est au-dessus du reste */
+    opacity: 0.8;       /* Optionnel : légère transparence */
+}
+
+/* Pour que ça reste joli sur mobile (logo un peu plus petit) */
+@media (max-width: 600px) {
+    .logo-top-right {
+        width: 40px;
+        top: 15px;
+        right: 15px;
+    }
+}
