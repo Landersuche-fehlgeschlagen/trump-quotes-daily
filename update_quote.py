@@ -22,7 +22,7 @@ def get_trump_quote():
                 "role": "user",
                 "content": """
                 Trouve une citation controversée ou marquante de Donald Trump ou de son entourage (JD Vance, Elon Musk...).
-                Privilégie une actualité récente (dernières 48h) si possible, sinon une phrase culte.
+                Privilégie une actualité récente. Plutôt en lien avec l'actualités, les journalistes, ses affaires judciaires (epstein...)
                 
                 FORMAT DE RÉPONSE ATTENDU (JSON BRUT UNIQUEMENT) :
                 {
